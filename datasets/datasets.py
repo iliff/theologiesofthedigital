@@ -1,3 +1,6 @@
+from torch.utils.data import Dataset
+
+
 class BibleCommentaryDataset(Dataset):
 
     def __init__(self):
