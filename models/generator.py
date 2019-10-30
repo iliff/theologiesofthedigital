@@ -1,6 +1,8 @@
 import numpy as np
 # pip3 install pytorch-transformers
+import torch
 from pytorch_transformers import GPT2Model, GPT2LMHeadModel, GPT2Config
+from pytorch_transformers.modeling_gpt2 import GPT2PreTrainedModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 from torch import nn
@@ -15,7 +17,7 @@ class CPULinear:
     NOTE WELL: only runs on CPU and is based upon scikitlearn, not pytorch.
     """
 
-    def __init__(self, num_output_sentences=7, knowledge_utterances=[]):
+    def __init__(self, num_output_sentences=1, knowledge_utterances=[]):
         """
         Constructor.
 
@@ -63,9 +65,34 @@ class GPT2Generator(nn.Module):
         super(GPT2Generator, self).__init__()
 
         self.gpt2_config = GPT2Config.from_pretrained('gpt2-large')
-        self.gptlmh2 = GPT2LMHeadModel.from_pretrained('gpt2-large')
+        self.conversation_gpt2 = GPT2Model.from_pretrained('gpt2-large')
+        self.knowledge_gpt2 = GPT2Model.from_pretrained('gpt2-large')
+        self.lm_head = nn.Linear(self.gpt2_config.n_embd * 2,  # assume a single knowledge utterance for now
+                                 self.gpt2_config.vocab_size, bias=False)
 
-    def forward(self, sequences, subsequences):
-        lmh2_last_hidden_state, past = self.gptlmh2(sequences)  # see the Model docstring
-        lmh2_tag_scores = lmh2_last_hidden_state[:, -1, :]  # take tag scores from the last layer
-        return lmh2_tag_scores
+    def forward(self, conversation_sequences, knowledge_sequences):
+        """
+        Makes an inference.
+
+        Parameters
+        ----------
+        sequences (torch.Tensor) - batch of samples.
+        knowledge_seqs (torch.Tensor) - batch of corresponding knowledge sequences
+                                        as determined by a CPULinear model.
+
+        Returns
+        -------
+        Tag scores (torch.Tensor) that indicate most likely next word for sample in batch.
+        """
+        # make inferences on the conversation sequences
+        conversation_last_hidden_state, past = self.conversation_gpt2(conversation_sequences)  # see the GPT2LMHeadModel docstring
+        conversation_last_hidden_layer = conversation_last_hidden_state[:, -1, :]
+
+        # make inferences on the knowledge sequences
+        knowledge_last_hidden_state, past = self.knowledge_gpt2(knowledge_sequences)  # see the GPT2LMHeadModel docstring
+        knowledge_last_hidden_layer = knowledge_last_hidden_state[:, -1, :]
+
+        # concatenate the two outputs and connect to the final linear layer, which predicts which vocab index is next.
+        concatenated = torch.cat(knowledge_last_hidden_layer, conversation_last_hidden_layer)
+        tag_scores = self.lm_head(concatenated)  # take tag scores from the last layer
+        return tag_scores
