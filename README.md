@@ -4,6 +4,6 @@ Presented by the [Experimental Humanities Lab @ Iliff](https://www.iliff.edu/exp
 
 ## Team 
 
-*Lead Engineer - Dr. Justin Barber*
-*Data Scientists - Dr. Micah Saxton and Shawn Goodwin*
-*Project Coordinator - Dr. Michael Hemenway*
+* *Lead Engineer - Dr. Justin Barber*
+* *Data Scientists - Dr. Micah Saxton and Shawn Goodwin*
+* *Project Coordinator - Dr. Michael Hemenway*
