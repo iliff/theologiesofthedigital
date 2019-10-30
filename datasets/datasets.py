@@ -7,13 +7,38 @@ from pytorch_transformers import GPT2Tokenizer
 from torch.utils.data import Dataset
 
 
+class CustomTokenizer(GPT2Tokenizer):
+
+    """
+    Quiet the protestations of GPT2Tokenizer when the number of tokens exceeds max length,
+    and optimize a bit by stopping tokenization when number of tokens exceeds max length.
+    """
+
+    def convert_tokens_to_ids(self, tokens):
+        """
+        Converts a single token, or a sequence of tokens, (str/unicode) in a single integer id
+        (resp. a sequence of ids), using the vocabulary.
+        """
+        if isinstance(tokens, str):
+            return self._convert_token_to_id_with_added_voc(tokens)
+
+        ids = []
+        for i, token in enumerate(tokens):
+            if i >= self.max_len:
+                break
+            ids.append(self._convert_token_to_id_with_added_voc(token))
+
+        return ids
+
+
 class BibleCommentaryDataset(Dataset):
+
+    tokenizer = CustomTokenizer.from_pretrained('gpt2-large')
 
     def __init__(self, dir_='../trainingdata', max_seq_len=512, archive_filename='commentaries',
                  refresh=False):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
-        self.tokenizer = CustomTokenizer.from_pretrained('gpt2-large')
         self.eos_index = self.tokenizer.encode(self.tokenizer.eos_token)[0]
 
         if not refresh and archive_filename in os.listdir('../trainingdataarchived'):
@@ -48,21 +73,9 @@ class BibleCommentaryDataset(Dataset):
 
     def _convert_df_to_text_tokens(self, df):
         df['text'] = df['verse'] + ' {} '.format(self.tokenizer.eos_token) + df['comment']
-        dfs = np.array_split(df, 14)
-        manager = multiprocessing.Manager()
-        processed_dfs = manager.list()
-        for i, subdf in enumerate(dfs):
-            print('starting subprocessing on df for conversion to text tokens', i)
-            p = multiprocessing.Process(target=_create_df_with_token_gradations, args=(subdf, processed_dfs))
-            p.start()
-            p.join()
-            subdf['tokens'] = subdf['text'].apply(lambda x: self.tokenizer.encode(x)[:self.max_seq_len])
-            processed_dfs.append(subdf)
-        new_df = pd.DataFrame()
-        for subdf in processed_dfs.values():
-            new_df = new_df.append(subdf, ignore_index=True)
-        new_df = new_df[['text', 'tokens']]
-        return new_df
+        df['tokens'] = df['text'].apply(lambda x: self.tokenizer.encode(x)[:self.max_seq_len])
+        df = df[['text', 'tokens']]
+        return df
 
     def _make_token_gradations(self, df):
         print('splitting into multiple dfs for multiprocessing.')
@@ -70,13 +83,13 @@ class BibleCommentaryDataset(Dataset):
         manager = multiprocessing.Manager()
         processed_dfs = manager.list()
         for i, subdf in enumerate(dfs):
-            print('starting subprocessing on df for token gradations', i)
+            print('starting subprocessing on df', i)
             p = multiprocessing.Process(target=_create_df_with_token_gradations, args=(subdf, processed_dfs))
             p.start()
             p.join()
         print('joining multiprocessed dfs together')
         new_df = pd.DataFrame()
-        for subdf in processed_dfs.values():
+        for subdf in processed_dfs:
             new_df = new_df.append(subdf, ignore_index=True)
         return new_df
 
@@ -87,40 +100,16 @@ class BibleCommentaryDataset(Dataset):
         return len(self.df)
 
 
-class CustomTokenizer(GPT2Tokenizer):
-
-    """
-    Quiet the protestations of GPT2Tokenizer when the number of tokens exceeds max length,
-    and optimize a bit by stopping tokenization when number of tokens exceeds max length.
-    """
-
-    def convert_tokens_to_ids(self, tokens):
-        """
-        Converts a single token, or a sequence of tokens, (str/unicode) in a single integer id
-        (resp. a sequence of ids), using the vocabulary.
-        """
-        if isinstance(tokens, str):
-            return self._convert_token_to_id_with_added_voc(tokens)
-
-        ids = []
-        for i, token in enumerate(tokens):
-            if i >= self.max_len:
-                break
-            ids.append(self._convert_token_to_id_with_added_voc(token))
-
-        return ids
-
-
 def _create_df_with_token_gradations(df, processed_dfs):
     new_df = pd.DataFrame(columns=['text', 'next_word', 'sequence', 'next_token'])
     for i, row in df.iterrows():
-        start_of_string_index = row['tokens'].index(self.eos_index) + 1
+        start_of_string_index = row['tokens'].index(BibleCommentaryDataset.tokenizer.eos_index) + 1
         for j in range(start_of_string_index, len(row['tokens']) - 1):
             new_df = new_df.append({
                 'sequence': row['tokens'][:j],
                 'next_token': row['tokens'][j],
-                'text': self.tokenizer.decode(row['tokens'][:j]),
-                'next_word': self.tokenizer.decode(row['tokens'][j]),
+                'text': BibleCommentaryDataset.tokenizer.decode(row['tokens'][:j]),
+                'next_word': BibleCommentaryDataset.tokenizer.decode(row['tokens'][j]),
             }, ignore_index=True)
     processed_dfs.append(new_df)
     print('completed a subdf')
