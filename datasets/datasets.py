@@ -3,6 +3,7 @@ import multiprocessing
 
 import numpy as np
 import pandas as pd
+import torch
 from pytorch_transformers import GPT2Tokenizer
 from torch.utils.data import Dataset
 
@@ -10,8 +11,8 @@ from torch.utils.data import Dataset
 class CustomTokenizer(GPT2Tokenizer):
 
     """
-    Quiet the protestations of GPT2Tokenizer when the number of tokens exceeds max length,
-    and optimize a bit by stopping tokenization when number of tokens exceeds max length.
+    Quiet the protestations of GPT2Tokenizer when the number of tokens exceeds max max_dataset_length,
+    and optimize a bit by stopping tokenization when number of tokens exceeds max max_dataset_length.
     """
 
     def convert_tokens_to_ids(self, tokens):
@@ -34,19 +35,42 @@ class CustomTokenizer(GPT2Tokenizer):
 class BibleCommentaryDataset(Dataset):
 
     tokenizer = CustomTokenizer.from_pretrained('gpt2-large')
+    eos_index = tokenizer.encode(tokenizer.eos_token)[0]
 
     def __init__(self, dir_='../trainingdata', max_seq_len=512, archive_filename='commentaries',
-                 refresh=False):
+                 refresh=False, dataset_length=10_000):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
-        self.eos_index = self.tokenizer.encode(self.tokenizer.eos_token)[0]
+        self.archive_filename = archive_filename
+        self.max_dataset_length = dataset_length
+
+        self.current_sample = pd.DataFrame()
+        self.has_called_length = False
 
         if not refresh and archive_filename in os.listdir('../trainingdataarchived'):
             self.df = pd.read_csv(os.path.join('../trainingdataarchived', archive_filename))
         else:
             self.df = self._construct_df(archive_filename, dir_)
-            self.df.to_csv(os.path.join('../trainingdataarchived', archive_filename),
+            self.df.to_csv(os.path.join('../trainingdataarchived', archive_filename) + '.csv',
                            index=False)
+        self.sentence_length = self.df['verse_token_length'].min()
+
+        # get first sample and first sentence length
+        while not len(self.current_sample):
+            self._set_current_sample()
+            self.sentence_length = self.sentence_length + 1 if self.sentence_length < 1024 else 0
+
+    def _add_sequence_lengths_to_df(self, df):
+        df['verse_token_length'] = df['verse_sequence'].apply(lambda x: len(x))
+        df['comment_token_length'] = df['comment_sequence'].apply(lambda x: len(x))
+        df['total_token_length'] = df['verse_token_length'] + df['comment_token_length']
+        return df
+
+    def _add_sequences_to_df(self, df):
+        df['verse_sequence'] = df['verse'].apply(lambda x: self.tokenizer.encode(x) +
+                                                           self.tokenizer.encode(self.tokenizer.eos_token[0]))
+        df['comment_sequence'] = df['comment'].apply(lambda x: self.tokenizer.encode(x))
+        return df
 
     def _clean_df(self, df):
         df = df.dropna(subset=['comment'])
@@ -64,59 +88,45 @@ class BibleCommentaryDataset(Dataset):
             df = df.append(subdf, ignore_index=True, sort=False)
         print('cleaning df ...')
         df = self._clean_df(df)
-        print('converting df to text tokens')
-        df = self._convert_df_to_text_tokens(df)
-        print('constructing making df token gradations ...')
-        df = self._make_token_gradations(df)
-        df['length'] = df['sequence'].apply(lambda x: len(x))
-        return df.sort_values(by='length', ascending=True)
-
-    def _convert_df_to_text_tokens(self, df):
-        df['text'] = df['verse'] + ' {} '.format(self.tokenizer.eos_token) + df['comment']
-        df['tokens'] = df['text'].apply(lambda x: self.tokenizer.encode(x)[:self.max_seq_len])
-        df = df[['text', 'tokens']]
+        # df.to_csv(os.path.join('../trainingdataarchived', self.archive_filename + '_raw.csv'))
+        print('adding sequences to df')
+        df = self._add_sequences_to_df(df)
+        df = self._add_sequence_lengths_to_df(df)
+        df = df.sort_values(by=['total_token_length'], ascending=True)
         return df
 
-    def _make_token_gradations(self, df):
-        print('splitting into multiple dfs for multiprocessing.')
-        dfs = np.array_split(df, 14)
-        manager = multiprocessing.Manager()
-        processed_dfs = manager.list()
-        for i, subdf in enumerate(dfs):
-            print('starting subprocessing on df', i)
-            p = multiprocessing.Process(target=_create_df_with_token_gradations, args=(subdf, processed_dfs))
-            p.start()
-            p.join()
-        print('joining multiprocessed dfs together')
-        new_df = pd.DataFrame()
-        for subdf in processed_dfs:
-            new_df = new_df.append(subdf, ignore_index=True)
-        return new_df
+    def _set_current_sample(self):
+        df = self.df[(self.df['total_token_length'] > self.sentence_length) &
+                     (self.df['verse_token_length'] < self.sentence_length)]
+        self.current_sample = df.sample(n=min(self.max_dataset_length, len(df)), replace=False).reset_index()
 
     def __getitem__(self, item):
-        return self.df[['sequence', 'next_token', 'text', 'sequence']].iloc[item].tolist()
+        verse_sequence = self.current_sample.iloc[item]['verse_sequence']
+        comment_sequence = self.current_sample.iloc[item]['comment_sequence']
+        full_sequence = verse_sequence + comment_sequence
+        print('full sequence', full_sequence)
+        print('sentence length', self.sentence_length)
+        nn_x, nn_y = torch.Tensor(full_sequence[:self.sentence_length]).long(), full_sequence[self.sentence_length]
+        tfidf_x = self.current_sample.iloc[item]['comment_sequence']
+        return (nn_x, tfidf_x, nn_y)
 
     def __len__(self):
-        return len(self.df)
+        if self.has_called_length:
+            self.sentence_length = self.sentence_length + 1 if self.sentence_length < 1024 else 0
+        else:
+            self.has_called_length = True
+        return min(self.max_dataset_length, len(self.current_sample))
 
-
-def _create_df_with_token_gradations(df, processed_dfs):
-    new_df = pd.DataFrame(columns=['text', 'next_word', 'sequence', 'next_token'])
-    for i, row in df.iterrows():
-        start_of_string_index = row['tokens'].index(BibleCommentaryDataset.tokenizer.eos_index) + 1
-        for j in range(start_of_string_index, len(row['tokens']) - 1):
-            new_df = new_df.append({
-                'sequence': row['tokens'][:j],
-                'next_token': row['tokens'][j],
-                'text': BibleCommentaryDataset.tokenizer.decode(row['tokens'][:j]),
-                'next_word': BibleCommentaryDataset.tokenizer.decode(row['tokens'][j]),
-            }, ignore_index=True)
-    processed_dfs.append(new_df)
-    print('completed a subdf')
+    def set_sentence_length(self, value):
+        self.sentence_length = value
 
 
 if __name__ == '__main__':
     commentary_dataset = BibleCommentaryDataset()
-    print(commentary_dataset[3])
-    print(commentary_dataset[4])
     print(len(commentary_dataset))
+    for j in iter(range(len(commentary_dataset))):
+        print(j, commentary_dataset[j])
+    print(len(commentary_dataset))
+    # the following should be longer
+    for j in iter(range(len(commentary_dataset))):
+        print(j, commentary_dataset[j])
