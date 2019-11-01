@@ -37,8 +37,8 @@ class BibleCommentaryDataset(Dataset):
     tokenizer = CustomTokenizer.from_pretrained('gpt2-large')
     eos_index = tokenizer.encode(tokenizer.eos_token)[0]
 
-    def __init__(self, dir_='../trainingdata', max_seq_len=512, archive_filename='commentaries',
-                 refresh=False, dataset_length=10_000):
+    def __init__(self, dir_='trainingdata', max_seq_len=512, archive_filename='commentaries',
+                 refresh=False, dataset_length=10_000, max_df_len=None):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
         self.archive_filename = archive_filename
@@ -47,12 +47,13 @@ class BibleCommentaryDataset(Dataset):
         self.current_sample = pd.DataFrame()
         self.has_called_length = False
 
-        if not refresh and archive_filename in os.listdir('../trainingdataarchived'):
-            self.df = pd.read_csv(os.path.join('../trainingdataarchived', archive_filename))
+        if not refresh and archive_filename in os.listdir('trainingdataarchived'):
+            self.df = pd.read_csv(os.path.join('trainingdataarchived', archive_filename))
         else:
-            self.df = self._construct_df(archive_filename, dir_)
-            self.df.to_csv(os.path.join('../trainingdataarchived', archive_filename) + '.csv',
+            self.df = self._construct_df(archive_filename, dir_, max_df_len=max_df_len)
+            self.df.to_csv(os.path.join('trainingdataarchived', archive_filename) + '.csv',
                            index=False)
+
         self.sentence_length = self.df['verse_token_length'].min()
 
         # get first sample and first sentence length
@@ -78,7 +79,7 @@ class BibleCommentaryDataset(Dataset):
         df = df[df['comment'] != '']
         return df
 
-    def _construct_df(self, archive_filename, dir_):
+    def _construct_df(self, archive_filename, dir_, max_df_len=None):
         print('constructing initial df ...')
         df = pd.DataFrame(columns=['reference', 'verse', 'comment'])
         for fn in os.listdir(dir_):
@@ -93,6 +94,8 @@ class BibleCommentaryDataset(Dataset):
         df = self._add_sequences_to_df(df)
         df = self._add_sequence_lengths_to_df(df)
         df = df.sort_values(by=['total_token_length'], ascending=True)
+        if max_df_len:
+            df = df.iloc[:max_df_len]
         return df
 
     def _set_current_sample(self):

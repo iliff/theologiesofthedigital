@@ -42,9 +42,9 @@ class CPULinear:
 
         Returns
         -------
-        (list of list of str--3 dims.) list of list of most important knowledge utterances.
+        (list of str--2 dims.) list of list of most important knowledge utterances.
         """
-        transformed_utterances = self.vectorizer.transform(utterances)
+        transformed_utterances = self.vectorizer.transform(utterances.tolist())
         informing_utterances = []
         for i, transformed_utterance in enumerate(transformed_utterances):
             similarities = linear_kernel(transformed_utterances[i:i + 1], self.knowledge_vectors).flatten()

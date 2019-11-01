@@ -8,19 +8,25 @@ from pytorch_transformers import AdamW
 from torch import nn
 from torch.utils.data import DataLoader
 
+from datasets.datasets import BibleCommentaryDataset
+from models.generator import CPULinear, GPT2Generator
 
-def train(model_class, dataset_class, *dataset_args, model_filename='model.pt',
+
+def train(model_filename='verse_continuation_model.pt',
           lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
-          sample_sentences=[], **dataset_kwargs):
-    dataset = dataset_class(*dataset_args, **dataset_kwargs)
-    dataloader = DataLoader(dataset, batch_size=1024, shuffle=True,
+          sample_sentences=[]):
+
+    dataset = BibleCommentaryDataset(max_seq_len=512, dataset_length=1_000, max_df_len=100)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True,
                             num_workers=1)
+
+    tfidf_model = CPULinear(num_output_sentences=1, knowledge_utterances=dataset.df.comment)
 
     if model_filename and os.path.exists(model_filename):
         print('loading model ...')
         model = torch.load(model_filename)
     else:
-        model = model_class()
+        model = GPT2Generator()
     model = model.to('cuda')
 
     criterion = nn.CrossEntropyLoss()
@@ -31,42 +37,49 @@ def train(model_class, dataset_class, *dataset_args, model_filename='model.pt',
     for epoch_i, epoch in enumerate(range(epochs)):
 
         running_losses = []
-        for j in range(5, 25):  # already did 2 and 3, but then error
-            for i, batch in enumerate(dataloader):
 
-                optimizer.zero_grad()
+        for i, batch in enumerate(dataloader):
 
-                X, y = batch
+            optimizer.zero_grad()
 
-                # push X and y to cuda
-                X = X.to('cuda')
-                y = y.to('cuda')
+            X_gpt2, X_tfidf, y = batch
 
-                predictions = model(X)
-                loss = criterion(predictions, y)
-                running_losses.append(loss.item())
-                loss.backward()
+            # convert X_tfidf to sequences
+            X_tfidf = tfidf_model.forward(X_tfidf)
+            sequenced_X_tfidf = torch.Tensor([(dataset.tokenizer.encode(x) + [0] * 200)[:200] for x in X_tfidf]).long()
 
-                nn.utils.clip_grad_norm_(model.parameters(), 1.)
+            # push X and y to cuda
+            X_gpt2 = X_gpt2.to('cuda')
+            X_tfidf = X_tfidf.to('cuda')
+            y = y.to('cuda')
 
-                optimizer.step()
+            predictions = model(X_gpt2, X_tfidf)
+            loss = criterion(predictions, y)
+            running_losses.append(loss.item())
+            loss.backward()
 
-                if i % 50 == 0:
-                    print('EPOCH {}, current_sentence_length {}, Batch {}: loss == {:.8f}'
-                          .format(epoch, dataset.sentence_length, i,
-                                  sum(running_losses) / len(running_losses)))
-                    running_losses = []
+            nn.utils.clip_grad_norm_(model.parameters(), 1.)
 
-                if i % 1000 == 0:
-                    if inferencehook:
-                        inferencehook(dataset, model, sentences=sample_sentences)
-                    if last_loss is None:
-                        last_loss = loss
-                    elif last_loss > loss:
-                        print('Saving {} with loss {:.8f}'.format(model_filename, loss))
-                        torch.save(model, 'modeldata/' + model_filename)
-                        last_loss = loss
+            optimizer.step()
 
-            dataset.set_sentence_length(j)
-            dataloader = DataLoader(dataset, batch_size=4000 // j, shuffle=True,
-                                    num_workers=1)
+            if i % 50 == 0:
+                print('EPOCH {}, current_sentence_length {}, Batch {}: loss == {:.8f}'
+                      .format(epoch, dataset.sentence_length, i,
+                              sum(running_losses) / len(running_losses)))
+                running_losses = []
+
+            if i % 1000 == 0:
+                if inferencehook:
+                    inferencehook(dataset, model, sentences=sample_sentences)
+                if last_loss is None:
+                    last_loss = loss
+                elif last_loss > loss:
+                    print('Saving {} with loss {:.8f}'.format(model_filename, loss))
+                    torch.save(model, 'modeldata/' + model_filename)
+                    last_loss = loss
+
+
+if __name__ == '__main__':
+    train(model_filename='verse_continuation_model.pt',
+          lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
+          sample_sentences=[])
