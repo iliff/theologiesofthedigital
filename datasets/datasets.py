@@ -89,13 +89,13 @@ class BibleCommentaryDataset(Dataset):
             df = df.append(subdf, ignore_index=True, sort=False)
         print('cleaning df ...')
         df = self._clean_df(df)
+        if max_df_len:
+            df = df.sample(frac=1.).iloc[:max_df_len]
         # df.to_csv(os.path.join('../trainingdataarchived', self.archive_filename + '_raw.csv'))
         print('adding sequences to df')
         df = self._add_sequences_to_df(df)
         df = self._add_sequence_lengths_to_df(df)
         df = df.sort_values(by=['total_token_length'], ascending=True)
-        if max_df_len:
-            df = df.iloc[:max_df_len]
         return df
 
     def _set_current_sample(self):
