@@ -38,14 +38,16 @@ class BibleCommentaryDataset(Dataset):
     eos_index = tokenizer.encode(tokenizer.eos_token)[0]
 
     def __init__(self, dir_='trainingdata', max_seq_len=512, archive_filename='commentaries',
-                 refresh=False, dataset_length=10_000, max_df_len=None):
+                 refresh=False, dataset_length=10_000, max_df_len=None, batches_per_sent_len=20):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
         self.archive_filename = archive_filename
         self.max_dataset_length = dataset_length
+        self.batches_per_sent_len = batches_per_sent_len
 
         self.current_sample = pd.DataFrame()
         self.has_called_length = False
+        self.len_calls = 0
 
         if not refresh and archive_filename in os.listdir('trainingdataarchived'):
             self.df = pd.read_csv(os.path.join('trainingdataarchived', archive_filename))
@@ -99,7 +101,7 @@ class BibleCommentaryDataset(Dataset):
         return df
 
     def _set_current_sample(self):
-        df = self.df[(self.df['total_token_length'] > self.sentence_length) &
+        df = self.df[(self.df['total_token_length'] > self.sentence_length + 2) &
                      (self.df['verse_token_length'] < self.sentence_length)]
         self.current_sample = df.sample(n=min(self.max_dataset_length, len(df)), replace=False).reset_index()
 
@@ -107,17 +109,17 @@ class BibleCommentaryDataset(Dataset):
         verse_sequence = self.current_sample.iloc[item]['verse_sequence']
         comment_sequence = self.current_sample.iloc[item]['comment_sequence']
         full_sequence = verse_sequence + comment_sequence
-        print('full sequence', full_sequence)
-        print('sentence length', self.sentence_length)
         nn_x, nn_y = torch.Tensor(full_sequence[:self.sentence_length]).long(), full_sequence[self.sentence_length]
-        tfidf_x = self.current_sample.iloc[item]['comment_sequence']
+        tfidf_x = self.current_sample.iloc[item]['comment']
         return (nn_x, tfidf_x, nn_y)
 
     def __len__(self):
-        if self.has_called_length:
+        if self.has_called_length and self.len_calls % self.batches_per_sent_len == 0:
             self.sentence_length = self.sentence_length + 1 if self.sentence_length < 1024 else 0
+            self._set_current_sample()
         else:
             self.has_called_length = True
+        self.len_calls += 1
         return min(self.max_dataset_length, len(self.current_sample))
 
     def set_sentence_length(self, value):

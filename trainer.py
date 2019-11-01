@@ -10,17 +10,19 @@ from torch.utils.data import DataLoader
 
 from datasets.datasets import BibleCommentaryDataset
 from models.generator import CPULinear, GPT2Generator
+from traininghooks import generatorhook
 
 
 def train(model_filename='verse_continuation_model.pt',
           lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
           sample_sentences=[]):
 
-    dataset = BibleCommentaryDataset(max_seq_len=512, dataset_length=1_000, max_df_len=100)
+    dataset = BibleCommentaryDataset(max_seq_len=512, dataset_length=1_000, max_df_len=None,
+                                     batches_per_sent_len=4)
     dataloader = DataLoader(dataset, batch_size=2, shuffle=True,
                             num_workers=1)
 
-    tfidf_model = CPULinear(num_output_sentences=1, knowledge_utterances=dataset.df.comment)
+    tfidf_model = CPULinear(num_output_sentences=1, knowledge_utterances=dataset.df.comment.tolist())
 
     if model_filename and os.path.exists(model_filename):
         print('loading model ...')
@@ -34,11 +36,12 @@ def train(model_filename='verse_continuation_model.pt',
 
     last_loss = None
 
+    i = 0
     for epoch_i, epoch in enumerate(range(epochs)):
 
         running_losses = []
 
-        for i, batch in enumerate(dataloader):
+        for batch in dataloader:
 
             optimizer.zero_grad()
 
@@ -50,7 +53,7 @@ def train(model_filename='verse_continuation_model.pt',
 
             # push X and y to cuda
             X_gpt2 = X_gpt2.to('cuda')
-            X_tfidf = X_tfidf.to('cuda')
+            X_tfidf = sequenced_X_tfidf.to('cuda')
             y = y.to('cuda')
 
             predictions = model(X_gpt2, X_tfidf)
@@ -62,24 +65,28 @@ def train(model_filename='verse_continuation_model.pt',
 
             optimizer.step()
 
-            if i % 50 == 0:
+            if i % 1 == 0:
                 print('EPOCH {}, current_sentence_length {}, Batch {}: loss == {:.8f}'
                       .format(epoch, dataset.sentence_length, i,
                               sum(running_losses) / len(running_losses)))
                 running_losses = []
 
-            if i % 1000 == 0:
-                if inferencehook:
-                    inferencehook(dataset, model, sentences=sample_sentences)
-                if last_loss is None:
-                    last_loss = loss
-                elif last_loss > loss:
-                    print('Saving {} with loss {:.8f}'.format(model_filename, loss))
-                    torch.save(model, 'modeldata/' + model_filename)
-                    last_loss = loss
+        if i % 100 == 0:
+            if inferencehook:
+                sample_sentences = [s + ' ' + dataset.tokenizer.eos_token for s in sample_sentences]
+                inferencehook(dataset, model, tfidf_model, sentences=sample_sentences)
+            if last_loss is None:
+                last_loss = loss
+            elif last_loss > loss:
+                print('Saving {} with loss {:.8f}'.format(model_filename, loss))
+                torch.save(model, 'modeldata/' + model_filename)
+                last_loss = loss
+
+        i += 1
 
 
 if __name__ == '__main__':
-    train(model_filename='verse_continuation_model.pt',
-          lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
-          sample_sentences=[])
+    train(model_filename='verse_continuation_model.pt', inferencehook=generatorhook,
+          lr=6.5e-5, correct_bias=False, epochs=1000,
+          sample_sentences=['And they had hair as the hair of women, and their teeth were as the teeth of lions. ',
+                            'And I saw no temple therein: for the Lord God Almighty and the Lamb are the temple of it. '])
