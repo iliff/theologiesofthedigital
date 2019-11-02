@@ -19,7 +19,7 @@ def train(model_filename='verse_continuation_model.pt',
 
     dataset = BibleCommentaryDataset(max_seq_len=512, dataset_length=1_000, max_df_len=None,
                                      batches_per_sent_len=4)
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True,
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True,
                             num_workers=1)
 
     tfidf_model = CPULinear(num_output_sentences=1, knowledge_utterances=dataset.df.comment.tolist())
@@ -38,6 +38,9 @@ def train(model_filename='verse_continuation_model.pt',
 
     i = 0
     for epoch_i, epoch in enumerate(range(epochs)):
+
+        dataset.set_sentence_length(i % 512)
+        dataset.set_current_sample()
 
         running_losses = []
 
@@ -75,9 +78,9 @@ def train(model_filename='verse_continuation_model.pt',
             if inferencehook:
                 sample_sentences = [s + ' ' + dataset.tokenizer.eos_token for s in sample_sentences]
                 inferencehook(dataset, model, tfidf_model, sentences=sample_sentences)
-            if last_loss is None:
+            if last_loss is None and 'loss' in locals():
                 last_loss = loss
-            elif last_loss > loss:
+            elif 'loss' in locals() and last_loss > loss:
                 print('Saving {} with loss {:.8f}'.format(model_filename, loss))
                 torch.save(model, 'modeldata/' + model_filename)
                 last_loss = loss

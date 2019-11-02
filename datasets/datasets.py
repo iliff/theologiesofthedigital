@@ -60,7 +60,7 @@ class BibleCommentaryDataset(Dataset):
 
         # get first sample and first sentence length
         while not len(self.current_sample):
-            self._set_current_sample()
+            self.set_current_sample()
             self.sentence_length = self.sentence_length + 1 if self.sentence_length < 1024 else 0
 
     def _add_sequence_lengths_to_df(self, df):
@@ -100,11 +100,6 @@ class BibleCommentaryDataset(Dataset):
         df = df.sort_values(by=['total_token_length'], ascending=True)
         return df
 
-    def _set_current_sample(self):
-        df = self.df[(self.df['total_token_length'] > self.sentence_length + 2) &
-                     (self.df['verse_token_length'] < self.sentence_length)]
-        self.current_sample = df.sample(n=min(self.max_dataset_length, len(df)), replace=False).reset_index()
-
     def __getitem__(self, item):
         verse_sequence = self.current_sample.iloc[item]['verse_sequence']
         comment_sequence = self.current_sample.iloc[item]['comment_sequence']
@@ -114,13 +109,12 @@ class BibleCommentaryDataset(Dataset):
         return (nn_x, tfidf_x, nn_y)
 
     def __len__(self):
-        if self.has_called_length and self.len_calls % self.batches_per_sent_len == 0:
-            self.sentence_length = self.sentence_length + 1 if self.sentence_length < 1024 else 0
-            self._set_current_sample()
-        else:
-            self.has_called_length = True
-        self.len_calls += 1
-        return min(self.max_dataset_length, len(self.current_sample))
+        return len(self.current_sample)
+
+    def set_current_sample(self):
+        df = self.df[(self.df['total_token_length'] > self.sentence_length) &
+                     (self.df['verse_token_length'] < self.sentence_length)]
+        self.current_sample = df.sample(n=min(self.max_dataset_length, len(df)), replace=False).reset_index()
 
     def set_sentence_length(self, value):
         self.sentence_length = value
