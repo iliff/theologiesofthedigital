@@ -74,6 +74,10 @@ def train(model_filename='verse_continuation_model.pt',
         else:
             optimizer.step()
             optimizer.zero_grad()
+            print('EPOCH {}, current_sentence_length {}, Batch {}: loss == {:.8f}'
+                  .format(epoch, dataset.sentence_length, i,
+                          sum(running_losses) * optimize_every / len(running_losses)))
+            running_losses = []
 
         if inferencehook:
             sample_sentences = [s + ' ' + dataset.tokenizer.eos_token for s in sample_sentences]
