@@ -39,7 +39,7 @@ class BibleCommentaryDataset(Dataset):
 
     def __init__(self, dir_='trainingdata', max_seq_len=512, archive_filename='commentaries',
                  refresh=False, max_dataset_length=10_000, batches_per_sent_len=20,
-                 limit_df_to=None):
+                 limit_df_to=None, df_book=None):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
         self.archive_filename = archive_filename
@@ -53,7 +53,8 @@ class BibleCommentaryDataset(Dataset):
         if not refresh and archive_filename in os.listdir('trainingdataarchived'):
             self.df = pd.read_csv(os.path.join('trainingdataarchived', archive_filename))
         else:
-            self.df = self._construct_df(archive_filename, dir_, max_df_len=limit_df_to)
+            self.df = self._construct_df(archive_filename, dir_, max_df_len=limit_df_to,
+                                         df_book=df_book)
             self.df.to_csv(os.path.join('trainingdataarchived', archive_filename) + '.csv',
                            index=False)
 
@@ -82,9 +83,12 @@ class BibleCommentaryDataset(Dataset):
         df = df[df['comment'] != '']
         return df
 
-    def _construct_df(self, archive_filename, dir_, max_df_len=None):
+    def _construct_df(self, archive_filename, dir_, max_df_len=None,
+                      df_book=None):
         print('constructing initial df ...')
         df = pd.DataFrame(columns=['reference', 'verse', 'comment'])
+        if df_book:
+            df = df[df['reference'].str.contains(df_book)]
         for fn in os.listdir(dir_):
             subdf = pd.read_csv(os.path.join(dir_, fn), sep='|', header=None,
                                 error_bad_lines=False, names=['reference', 'verse', 'comment'])
