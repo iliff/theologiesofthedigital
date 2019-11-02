@@ -38,7 +38,7 @@ def train(model_filename='verse_continuation_model.pt',
 
     for epoch_i, epoch in enumerate(range(epochs)):
 
-        dataset.set_sentence_length(i % 512)
+        dataset.set_sentence_length(epoch_i % 512)
         dataset.set_current_sample()
 
         running_losses = []
