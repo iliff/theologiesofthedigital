@@ -114,7 +114,7 @@ class BibleCommentaryDataset(Dataset):
         return (nn_x, tfidf_x, nn_y)
 
     def __len__(self):
-        return max(len(self.current_sample), self.max_dataset_length)
+        return min(len(self.current_sample), self.max_dataset_length)
 
     def set_current_sample(self):
         df = self.df[(self.df['total_token_length'] > self.sentence_length) &
