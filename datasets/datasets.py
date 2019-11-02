@@ -38,11 +38,12 @@ class BibleCommentaryDataset(Dataset):
     eos_index = tokenizer.encode(tokenizer.eos_token)[0]
 
     def __init__(self, dir_='trainingdata', max_seq_len=512, archive_filename='commentaries',
-                 refresh=False, dataset_length=10_000, max_df_len=None, batches_per_sent_len=20):
+                 refresh=False, max_dataset_length=10_000, batches_per_sent_len=20,
+                 limit_df_to=None):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
         self.archive_filename = archive_filename
-        self.max_dataset_length = dataset_length
+        self.max_dataset_length = max_dataset_length
         self.batches_per_sent_len = batches_per_sent_len
 
         self.current_sample = pd.DataFrame()
@@ -52,7 +53,7 @@ class BibleCommentaryDataset(Dataset):
         if not refresh and archive_filename in os.listdir('trainingdataarchived'):
             self.df = pd.read_csv(os.path.join('trainingdataarchived', archive_filename))
         else:
-            self.df = self._construct_df(archive_filename, dir_, max_df_len=max_df_len)
+            self.df = self._construct_df(archive_filename, dir_, max_df_len=limit_df_to)
             self.df.to_csv(os.path.join('trainingdataarchived', archive_filename) + '.csv',
                            index=False)
 
@@ -109,7 +110,7 @@ class BibleCommentaryDataset(Dataset):
         return (nn_x, tfidf_x, nn_y)
 
     def __len__(self):
-        return len(self.current_sample)
+        return max(len(self.current_sample), self.max_dataset_length)
 
     def set_current_sample(self):
         df = self.df[(self.df['total_token_length'] > self.sentence_length) &

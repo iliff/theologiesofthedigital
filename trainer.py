@@ -13,9 +13,9 @@ from traininghooks import generatorhook
 
 def train(model_filename='verse_continuation_model.pt',
           lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
-          sample_sentences=[]):
+          sample_sentences=[], optimize_every=32):
 
-    dataset = BibleCommentaryDataset(max_seq_len=512, dataset_length=1_000, max_df_len=None,
+    dataset = BibleCommentaryDataset(max_seq_len=512, max_dataset_length=100,
                                      batches_per_sent_len=4)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True,
                             num_workers=1)
@@ -32,9 +32,10 @@ def train(model_filename='verse_continuation_model.pt',
     criterion = nn.CrossEntropyLoss()
     optimizer = AdamW(params=model.parameters(), lr=lr, correct_bias=correct_bias)
 
+    optimizer.zero_grad()
+
     last_loss = None
 
-    i = 0
     for epoch_i, epoch in enumerate(range(epochs)):
 
         dataset.set_sentence_length(i % 512)
@@ -42,9 +43,7 @@ def train(model_filename='verse_continuation_model.pt',
 
         running_losses = []
 
-        for batch in dataloader:
-
-            optimizer.zero_grad()
+        for i, batch in enumerate(dataloader):
 
             X_gpt2, X_tfidf, y = batch
 
@@ -58,32 +57,33 @@ def train(model_filename='verse_continuation_model.pt',
             y = y.to('cuda')
 
             predictions = model(X_gpt2, X_tfidf)
-            loss = criterion(predictions, y)
+            loss = criterion(predictions, y) / optimize_every
             running_losses.append(loss.item())
             loss.backward()
 
             nn.utils.clip_grad_norm_(model.parameters(), 1.)
 
-            optimizer.step()
-
-            if i % 1 == 0:
+            if loss % optimize_every == 0:
+                optimizer.step()
+                optimizer.zero_grad()
                 print('EPOCH {}, current_sentence_length {}, Batch {}: loss == {:.8f}'
                       .format(epoch, dataset.sentence_length, i,
-                              sum(running_losses) / len(running_losses)))
+                              sum(running_losses) * optimize_every / len(running_losses)))
                 running_losses = []
 
-        if i % 100 == 0:
-            if inferencehook:
-                sample_sentences = [s + ' ' + dataset.tokenizer.eos_token for s in sample_sentences]
-                inferencehook(dataset, model, tfidf_model, sentences=sample_sentences)
-            if last_loss is None and 'loss' in locals():
-                last_loss = loss
-            elif 'loss' in locals() and last_loss > loss:
-                print('Saving {} with loss {:.8f}'.format(model_filename, loss))
-                torch.save(model, 'modeldata/' + model_filename)
-                last_loss = loss
+        else:
+            optimizer.step()
+            optimizer.zero_grad()
 
-        i += 1
+        if inferencehook:
+            sample_sentences = [s + ' ' + dataset.tokenizer.eos_token for s in sample_sentences]
+            inferencehook(dataset, model, tfidf_model, sentences=sample_sentences)
+        if last_loss is None and 'loss' in locals():
+            last_loss = loss
+        elif 'loss' in locals() and last_loss > loss:
+            print('Saving {} with loss {:.8f}'.format(model_filename, loss))
+            torch.save(model, 'modeldata/' + model_filename)
+            last_loss = loss
 
 
 if __name__ == '__main__':
