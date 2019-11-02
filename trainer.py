@@ -15,7 +15,7 @@ def train(model_filename='verse_continuation_model.pt',
           lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
           sample_sentences=[], optimize_every=32):
 
-    dataset = BibleCommentaryDataset(max_seq_len=512, max_dataset_length=500,
+    dataset = BibleCommentaryDataset(max_seq_len=512, max_dataset_length=200,
                                      batches_per_sent_len=4, df_book='Revelation')
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True,
                             num_workers=1)
@@ -63,7 +63,7 @@ def train(model_filename='verse_continuation_model.pt',
 
             nn.utils.clip_grad_norm_(model.parameters(), 1.)
 
-            if loss % optimize_every == 0:
+            if i % optimize_every == 0:
                 optimizer.step()
                 optimizer.zero_grad()
                 print('EPOCH {}, current_sentence_length {}, Batch {}: loss == {:.8f}'
