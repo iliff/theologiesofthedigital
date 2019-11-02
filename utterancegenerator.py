@@ -5,7 +5,7 @@ def finish_utterance(gpt2_model, tfidf_model, tokenizer, start_of_sentence,
                      words2add=20):
 
     x_tfidf = tfidf_model.forward([start_of_sentence])
-    print('Most closely related sentence to the following:', x_tfidf)
+    # print('Most closely related sentence to the following:', x_tfidf)
     sequenced_x_tfidf = torch.Tensor([(tokenizer.encode(x) + [0] * 200)[:200] for x in x_tfidf]).long()
 
     sequence = tokenizer.encode(start_of_sentence)

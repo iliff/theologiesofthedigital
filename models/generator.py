@@ -73,6 +73,9 @@ class GPT2Generator(nn.Module):
         self.lm_head = nn.Linear(self.gpt2_config.n_embd * 2,  # assume a single knowledge utterance for now
                                  self.gpt2_config.vocab_size, bias=False)
 
+        # initialize weights for ``self.lm_head``
+        self.lm_head.weight.data.normal_(mean=0.0, std=self.gpt2_config.initializer_range)
+
     def forward(self, conversation_sequences, knowledge_sequences):
         """
         Makes an inference.
