@@ -88,6 +88,6 @@ def train(model_filename='verse_continuation_model.pt',
 
 if __name__ == '__main__':
     train(model_filename='verse_continuation_model.pt', inferencehook=generatorhook,
-          lr=6.5e-5, correct_bias=False, epochs=1000,
+          lr=6.5e-5, correct_bias=False, epochs=1000, optimize_every=32,
           sample_sentences=['And they had hair as the hair of women, and their teeth were as the teeth of lions. ',
                             'And I saw no temple therein: for the Lord God Almighty and the Lamb are the temple of it. '])
