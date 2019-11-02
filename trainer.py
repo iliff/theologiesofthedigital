@@ -1,5 +1,3 @@
-# TODO: change for this bible project!
-
 import os
 
 import torch  # pip3 install torch
