@@ -1,4 +1,5 @@
 import os
+import random
 
 import torch  # pip3 install torch
 # pip3 install pytorch-transformers
@@ -38,7 +39,7 @@ def train(model_filename='verse_continuation_model.pt',
     for epoch_i, epoch in enumerate(range(epochs)):
 
         sent_len = dataset.sentence_length
-        dataset.set_sentence_length((epoch_i % 80) // 11)
+        dataset.set_sentence_length(((epoch_i % 80) // 11) or 1)
         dataset.set_current_sample()
 
         running_losses = []
@@ -88,7 +89,7 @@ def train(model_filename='verse_continuation_model.pt',
 
 
 if __name__ == '__main__':
-    train(model_filename='verse_continuation_model2.pt', inferencehook=generatorhook,
+    train(model_filename='verse_continuation_model4.pt', inferencehook=generatorhook,
           lr=6.5e-5, correct_bias=False, epochs=1000, optimize_every=32,
           sample_sentences=['And they had hair as the hair of women, and their teeth were as the teeth of lions. ',
                             'And I saw no temple therein: for the Lord God Almighty and the Lamb are the temple of it. '])

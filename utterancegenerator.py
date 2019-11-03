@@ -15,10 +15,13 @@ def finish_utterance(gpt2_model, tfidf_model, tokenizer, verse,
     new_sentence = [eos_index]
     with torch.no_grad():
         for i in range(words2add):
-            prediction = torch.argmax(gpt2_model(torch.Tensor([sequence]).long().to('cuda'),
-                                                 sequenced_x_tfidf.to('cuda'),
-                                                 torch.Tensor([new_sentence]).long().to('cuda'))).item()
-            new_sentence.append(prediction)
+            predictions = gpt2_model(torch.Tensor([sequence]).long().to('cuda'), sequenced_x_tfidf.to('cuda'),
+                                     torch.Tensor([new_sentence]).long().to('cuda'))
+            prediction = predictions[0]
+            top_k = torch.topk(prediction, 40)
+            p = top_k.values
+            p_index = torch.multinomial(p, 1).item()
+            new_sentence.append(top_k.indices[p_index].item())
     sentence = tokenizer.decode(new_sentence)
     gpt2_model.train()
 

@@ -112,5 +112,5 @@ class GPT2Generator(nn.Module):
         # concatenate the two outputs and connect to the final linear layer, which predicts which vocab index is next.
         concatenated = torch.cat((scripture_last_hidden_layer, knowledge_last_hidden_layer,
                                   output_last_hidden_layer), dim=1)
-        tag_scores = F.log_softmax(self.lm_head(concatenated))  # take tag scores from the last layer
+        tag_scores = F.softmax(self.lm_head(concatenated))  # take tag scores from the last layer
         return tag_scores

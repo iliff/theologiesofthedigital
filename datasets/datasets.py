@@ -108,14 +108,13 @@ class BibleCommentaryDataset(Dataset):
     def __getitem__(self, item):
         verse_sequence = self.current_sample.iloc[item]['verse_sequence']
         comment_sequence = self.current_sample.iloc[item]['comment_sequence']
-        eos_index = self.tokenizer.encode(self.tokenizer.eos_token)[0]
-        nn_v_x, nn_c_x = torch.Tensor(([0] * 60 + verse_sequence)[-60:]).long(), torch.Tensor([eos_index] + comment_sequence[:self.sentence_length]).long()
+        nn_v_x, nn_c_x = torch.Tensor(([0] * 60 + verse_sequence)[-60:]).long(), torch.Tensor(comment_sequence[:self.sentence_length]).long()
         nn_y = comment_sequence[self.sentence_length]
         tfidf_x = self.current_sample.iloc[item]['comment']
         return (nn_v_x, nn_c_x, tfidf_x, nn_y)
 
     def __len__(self):
-        return min(len(self.current_sample), self.max_dataset_length)
+        return min(len(self.current_sample), self.max_dataset_length) or 1
 
     def set_current_sample(self):
         df = self.df[(self.df['comment_token_length'] > self.sentence_length)]
