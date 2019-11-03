@@ -58,7 +58,7 @@ class BibleCommentaryDataset(Dataset):
             self.df.to_csv(os.path.join('trainingdataarchived', archive_filename) + '.csv',
                            index=False)
 
-        self.sentence_length = self.df['verse_token_length'].min()
+        self.sentence_length = 0
 
         # get first sample and first sentence length
         while not len(self.current_sample):
@@ -74,7 +74,7 @@ class BibleCommentaryDataset(Dataset):
     def _add_sequences_to_df(self, df):
         df['verse_sequence'] = df['verse'].apply(lambda x: self.tokenizer.encode(x) +
                                                            self.tokenizer.encode(self.tokenizer.eos_token[0]))
-        df['comment_sequence'] = df['comment'].apply(lambda x: self.tokenizer.encode(x))
+        df['comment_sequence'] = df['comment'].apply(lambda x: self.tokenizer.encode(x[:512]))
         return df
 
     def _clean_df(self, df):
@@ -108,17 +108,17 @@ class BibleCommentaryDataset(Dataset):
     def __getitem__(self, item):
         verse_sequence = self.current_sample.iloc[item]['verse_sequence']
         comment_sequence = self.current_sample.iloc[item]['comment_sequence']
-        full_sequence = verse_sequence + comment_sequence
-        nn_x, nn_y = torch.Tensor(full_sequence[:self.sentence_length]).long(), full_sequence[self.sentence_length]
+        eos_index = self.tokenizer.encode(self.tokenizer.eos_token)[0]
+        nn_v_x, nn_c_x = torch.Tensor(([0] * 60 + verse_sequence)[-60:]).long(), torch.Tensor([eos_index] + comment_sequence[:self.sentence_length]).long()
+        nn_y = comment_sequence[self.sentence_length]
         tfidf_x = self.current_sample.iloc[item]['comment']
-        return (nn_x, tfidf_x, nn_y)
+        return (nn_v_x, nn_c_x, tfidf_x, nn_y)
 
     def __len__(self):
         return min(len(self.current_sample), self.max_dataset_length)
 
     def set_current_sample(self):
-        df = self.df[(self.df['total_token_length'] > self.sentence_length) &
-                     (self.df['verse_token_length'] < self.sentence_length)]
+        df = self.df[(self.df['comment_token_length'] > self.sentence_length)]
         self.current_sample = df.sample(n=min(self.max_dataset_length, len(df)), replace=False).reset_index()
 
     def set_sentence_length(self, value):

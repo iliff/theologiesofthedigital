@@ -67,21 +67,23 @@ class GPT2Generator(nn.Module):
     def __init__(self):
         super(GPT2Generator, self).__init__()
 
-        self.gpt2_config = GPT2Config.from_pretrained('gpt2-large')
-        self.conversation_gpt2 = GPT2Model.from_pretrained('gpt2-large')
-        self.knowledge_gpt2 = GPT2Model.from_pretrained('gpt2-large')
-        self.lm_head = nn.Linear(self.gpt2_config.n_embd * 2,  # assume a single knowledge utterance for now
+        # TODO: can i make the outputs below large and the knowledge medium?
+        self.gpt2_config = GPT2Config.from_pretrained('gpt2-medium')
+        self.input_gpt2 = GPT2Model.from_pretrained('gpt2-medium')
+        self.output_gpt2 = GPT2Model.from_pretrained('gpt2-medium')
+        self.lm_head = nn.Linear(self.gpt2_config.n_embd * 3,  # assume a single knowledge utterance for now
                                  self.gpt2_config.vocab_size, bias=False)
 
         # initialize weights for ``self.lm_head``
         self.lm_head.weight.data.normal_(mean=0.0, std=self.gpt2_config.initializer_range)
 
         # tie weights
-        wider_weights = torch.cat((self.conversation_gpt2.wte.weight.clone(),
-                                   self.conversation_gpt2.wte.weight.clone()), dim=1)
-        self.lm_head.weight = nn.Parameter(self.conversation_gpt2.wte.weight.clone())
+        wider_weights = torch.cat((self.input_gpt2.wte.weight.clone(),
+                                   self.output_gpt2.wte.weight.clone(),
+                                   self.output_gpt2.wte.weight.clone()), dim=1)
+        self.lm_head.weight = nn.Parameter(wider_weights)
 
-    def forward(self, conversation_sequences, knowledge_sequences):
+    def forward(self, scripture_sequences, knowledge_sequences, output_sequences):
         """
         Makes an inference.
 
@@ -95,15 +97,20 @@ class GPT2Generator(nn.Module):
         -------
         Tag scores (torch.Tensor) that indicate most likely next word for sample in batch.
         """
-        # make inferences on the conversation sequences
-        conversation_last_hidden_state, past = self.conversation_gpt2(conversation_sequences)  # see the GPT2LMHeadModel docstring
-        conversation_last_hidden_layer = conversation_last_hidden_state[:, -1, :]
+        # make inferences on the scripture sequences with input_gpt2
+        scripture_last_hidden_state, past = self.input_gpt2(scripture_sequences)  # see the GPT2LMHeadModel docstring
+        scripture_last_hidden_layer = scripture_last_hidden_state[:, -1, :]
 
-        # make inferences on the knowledge sequences
-        knowledge_last_hidden_state, past = self.knowledge_gpt2(knowledge_sequences)  # see the GPT2LMHeadModel docstring
+        # make inferences on the knowledge sequences with output_gpt2
+        knowledge_last_hidden_state, past = self.output_gpt2(knowledge_sequences)  # see the GPT2LMHeadModel docstring
         knowledge_last_hidden_layer = knowledge_last_hidden_state[:, -1, :]
 
+        # make inferences on output (predicted) sequences with output_gpt2
+        output_last_hidden_state, past = self.output_gpt2(output_sequences)  # see the GPT2LMHeadModel docstring
+        output_last_hidden_layer = output_last_hidden_state[:, -1, :]
+
         # concatenate the two outputs and connect to the final linear layer, which predicts which vocab index is next.
-        concatenated = torch.cat((knowledge_last_hidden_layer, conversation_last_hidden_layer), dim=1)
+        concatenated = torch.cat((scripture_last_hidden_layer, knowledge_last_hidden_layer,
+                                  output_last_hidden_layer), dim=1)
         tag_scores = F.log_softmax(self.lm_head(concatenated))  # take tag scores from the last layer
         return tag_scores

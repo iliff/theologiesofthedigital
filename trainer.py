@@ -13,11 +13,10 @@ from traininghooks import generatorhook
 
 def train(model_filename='verse_continuation_model.pt',
           lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
-          sample_sentences=[], optimize_every=32):
-
-    dataset = BibleCommentaryDataset(max_seq_len=512, max_dataset_length=200,
+          sample_sentences=[], optimize_every=12):
+    dataset = BibleCommentaryDataset(max_seq_len=512, max_dataset_length=300,
                                      batches_per_sent_len=4, df_book='Revelation')
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True,
+    dataloader = DataLoader(dataset, batch_size=12, shuffle=True,
                             num_workers=1)
 
     tfidf_model = CPULinear(num_output_sentences=1, knowledge_utterances=dataset.df.comment.tolist())
@@ -38,25 +37,27 @@ def train(model_filename='verse_continuation_model.pt',
 
     for epoch_i, epoch in enumerate(range(epochs)):
 
-        dataset.set_sentence_length(epoch_i % 512)
+        sent_len = dataset.sentence_length
+        dataset.set_sentence_length((epoch_i % 80) // 11)
         dataset.set_current_sample()
 
         running_losses = []
 
         for i, batch in enumerate(dataloader):
 
-            X_gpt2, X_tfidf, y = batch
+            X_scripture, X_comment, X_tfidf, y = batch
 
             # convert X_tfidf to sequences
             X_tfidf = tfidf_model.forward(X_tfidf)
             sequenced_X_tfidf = torch.Tensor([(dataset.tokenizer.encode(x) + [0] * 200)[:200] for x in X_tfidf]).long()
 
             # push X and y to cuda
-            X_gpt2 = X_gpt2.to('cuda')
+            X_scripture = X_scripture.to('cuda')
+            X_comment = X_comment.to('cuda')
             X_tfidf = sequenced_X_tfidf.to('cuda')
             y = y.to('cuda')
 
-            predictions = model(X_gpt2, X_tfidf)
+            predictions = model(X_scripture, X_comment, X_tfidf)
             loss = criterion(predictions, y) / optimize_every
             running_losses.append(loss.item())
             loss.backward()
@@ -87,7 +88,7 @@ def train(model_filename='verse_continuation_model.pt',
 
 
 if __name__ == '__main__':
-    train(model_filename='verse_continuation_model.pt', inferencehook=generatorhook,
+    train(model_filename='verse_continuation_model2.pt', inferencehook=generatorhook,
           lr=6.5e-5, correct_bias=False, epochs=1000, optimize_every=32,
           sample_sentences=['And they had hair as the hair of women, and their teeth were as the teeth of lions. ',
                             'And I saw no temple therein: for the Lord God Almighty and the Lamb are the temple of it. '])
