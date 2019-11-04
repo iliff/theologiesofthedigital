@@ -5,6 +5,9 @@ from utterancegenerator_lm_only import finish_utterance
 
 
 if __name__ == '__main__':
+    model = torch.load('../modeldata/verse_continuation_model_lm_only_2.79289041.pt').to('cuda')
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
+
     while True:
         verse = input('Please enter your verse: ')
 
@@ -31,8 +34,6 @@ if __name__ == '__main__':
                 print(variations, 'is not an integer')
                 continue
 
-        model = torch.load('../modeldata/verse_continuation_model_lm_only.pt').to('cuda')
-        tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
         for i in range(variations):
-            utterance = finish_utterance(model, tokenizer, verse, words2add=words2add, k=1)
+            utterance = finish_utterance(model, tokenizer, verse, words2add=words2add, k=top_k)
             print(utterance)

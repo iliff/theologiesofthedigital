@@ -7,6 +7,9 @@ def finish_utterance(gpt2_model, tokenizer, verse, words2add=20, k=40):
     gpt2_model.eval()
     with torch.no_grad():
         for i in range(words2add):
+            if len(sequence) >= 1024:
+                print('reached max inference length')
+                break
             predictions = gpt2_model(torch.Tensor([sequence]).long().to('cuda'))
             prediction = predictions[0]
             top_k = torch.topk(prediction, k)

@@ -38,7 +38,7 @@ class BibleCommentaryDataset(Dataset):
     eos_index = tokenizer.encode(tokenizer.eos_token)[0]
 
     def __init__(self, dir_='trainingdata', max_seq_len=512, archive_filename='commentaries',
-                 refresh=False, max_dataset_length=10_000, batches_per_sent_len=20,
+                 refresh=True, max_dataset_length=10_000, batches_per_sent_len=20,
                  limit_df_to=None, df_book=None):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
@@ -78,6 +78,7 @@ class BibleCommentaryDataset(Dataset):
 
     def _clean_df(self, df):
         df = df.dropna(subset=['comment'])
+        df = df.drop_duplicates(subset=['comment'], keep='last')
         df.loc[:, 'comment'] = df['comment'].apply(lambda x: x.strip())
         df = df[df['comment'] != '']
         return df
