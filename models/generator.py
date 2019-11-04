@@ -97,7 +97,7 @@ class GPT2Generator(nn.Module):
         -------
         Tag scores (torch.Tensor) that indicate most likely next word for sample in batch.
         """
-        # make inferences on the scripture sequences with input_gpt2
+        # make inferences on the scripture sequences with lh_model
         scripture_last_hidden_state, past = self.input_gpt2(scripture_sequences)  # see the GPT2LMHeadModel docstring
         scripture_last_hidden_layer = scripture_last_hidden_state[:, -1, :]
 
