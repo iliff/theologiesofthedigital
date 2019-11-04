@@ -14,5 +14,6 @@ We believe the process of building, testing, and deploying this model can raise 
 * What constitutes the boundary between bible and our reading/intepretation of it? 
 * How does the digital materiality of bible, no longer constrained by the codex, change the ways we use and understand bible? 
 * How does reading and writing with machines impact our notions of authorship, creativity, and interpretive capacity?
+* How might the machine's processes of generating theological commentary (dependent on and derivative of the inherited tradition/corpus of theological discourse on which it trains) invite reflection on our own human processes of theological reflection and the generation of new theological ideas? 
 
 For the first iteration of this model, to demonstrate proof of concept, we will build a very simple interface that will allow a user to give the text of a biblical passage to the model and in return, the model will construct a response, word by word, that comments on the given passage. These machinic readings of bible will hopefully foster conversation among scholars and practitioners that will in turn help us develop more useful iterations of the model. 
