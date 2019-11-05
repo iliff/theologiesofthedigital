@@ -6,7 +6,7 @@ author: project team
 
 We will add more to our discussion about our training process for the model and the model design, but for now, we want to share some initial results produced by the model so far. 
 
-## General Tuning of the Langauge Model
+## General Tuning of the Language Model
 
 After a few rounds of training (more specifics to come on exact durations and conditions of these training runs) on our bible commentary corpus to focus the general knowledge of our language model on our desired discourse, we can see the langauge model tuning toward the biblical discourse. To remind us, when we give gpt-2 a prompt, it takes the prompt and then uses its language model to choose the most probable next word that would appear and writes it. Then, it takes the prompt plus the first word it chose and does the same process again to choose the next word, and so on, until we tell it to stop. 
 If we pass the phrase "Artificial Intelligence revealeth" to gpt-2 without any additional general knowledge training, here are the kinds of comments gpt-2 returns (each bullet is a separate attempt at a response):
