@@ -23,14 +23,10 @@ I have enabled [hypothes.is](https://hypothes.is) on all pages of the site. Plea
 
 > I have struggled for years with the best way to translate the codex afforded "footnotes" into digital writing spaces. For this project, I will include my notes as either indentations within the text of as hypothes.is annotations. Please look for the annotation highlights while you read. Often, the most interesting places for engagement are in the margins, are they not?
 
-### Link to Zotero for bibliography
-
-Coming soon!
-
-### Posts
+### Project TOC
 
 <ul>
-  {% for post in site.posts %}
+  {% for post in site.posts reversed%}
     <li>
       <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
     </li>
