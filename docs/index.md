@@ -17,20 +17,17 @@ This project is our team's contribution to the international workshop on Theolog
 
 ### Participants
 
-In this project, our [Experimental Humanities team at Iliff](https://www.iliff.edu/experimental-humanities/) has been a core inspiration and partner in the work at all stages. **Dr. Justin Barber** is the lead AI engineer on the project. **Shawn Goodwin** and **Dr. Micah Saxton** are providing substantial data support for the project. We are also building upon development underway at the [AI Institute at Iliff](https://ai.iliff.edu) and utilizing the excellent high performance computing power provided by the institute. 
+In this project, our [Experimental Humanities team at Iliff](https://www.iliff.edu/experimental-humanities/) has been a core inspiration and partner in the work at all stages. **Dr. Justin Barber** is the lead AI engineer on the project. **Shawn Goodwin** and **Dr. Micah Saxton** are providing substantial data support for the project. **Dr. Timothy Beal**, co-investigator at ai.iliff, has provided consultation and contributed to writing in the project. **Dr. Michael Hemenway** is the coordinator and designer of the project. To see the active contributors at any stage of the project, you can find this in the [insights area of the repository](https://github.com/iliff/theologiesofthedigital/graphs/contributors). We are also building upon development underway at the [AI Institute at Iliff](https://ai.iliff.edu) and utilizing the excellent high performance computing power provided by the institute. 
 
 I have enabled [hypothes.is](https://hypothes.is) on all pages of the site. Please feel free to pose questions or thoughts or additional resources or arguments, etc. using the hypothes.is tools. If you are interested in participating in the development of the data or the model used to construct this conversational AI, let us know and we can invite you as a collaborator on the repository. 
 
 > I have struggled for years with the best way to translate the codex afforded "footnotes" into digital writing spaces. For this project, I will include my notes as either indentations within the text of as hypothes.is annotations. Please look for the annotation highlights while you read. Often, the most interesting places for engagement are in the margins, are they not?
 
-### Link to Zotero for bibliography
-
-Coming soon!
-
-### Posts
+### Project TOC
+This is the main structure of the writing *about* this project. It wouldn't hurt to engage these pages in this order, but feel free to skip around wherever you see fit. Please use the links at the left to view the actual code base driving the project. At any time, click the theologiesofthedigital link in the top left of the site to get back to this page. If you have any questions related to the project, feel free to post an issue to the repository or email us at experimentalhumanities@iliff.edu.
 
 <ul>
-  {% for post in site.posts %}
+  {% for post in site.posts reversed%}
     <li>
       <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
     </li>

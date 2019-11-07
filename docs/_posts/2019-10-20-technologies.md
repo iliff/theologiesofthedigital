@@ -1,6 +1,7 @@
 ---
 layout: post
 title: technologies
+author: project team
 ---
 
 In the interest of being intentional about the materialities at work in this project and to foster other's reproducing and expanding on this work, we will define the main technologies we will use to build this project.

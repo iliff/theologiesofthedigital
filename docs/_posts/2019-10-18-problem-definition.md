@@ -1,6 +1,7 @@
 ---
 layout: post
 title: problem definition
+author: project team
 ---
 
 What can we learn from reading bible with machines? To explore this question, our team is building a text generation model that will take a short passage from bible as input and output a narrative commentary on the passage. We begin with the assumption that machines can be significant partners in reading corpora like bible by learning from existing commentary data and introducing novel reflections on a given passage. These machine generated reflections on bible passages can teach us about the existing tendencies in bible commentary and can introduce new questions and insights on the corpus.
