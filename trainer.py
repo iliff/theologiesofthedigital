@@ -56,10 +56,10 @@ def train(model_filename='verse_continuation_model.pt',
 
         for i, batch in enumerate(dataloader):
 
-            X_scripture, X_comment, X_tfidf, y = batch
+            X_scripture, X_comment, y = batch
 
             # convert X_tfidf to sequences
-            X_tfidf = tfidf_model.forward(X_comment)
+            X_tfidf = tfidf_model.forward(dataset.tokenizer.encode(X_comment))
             # the following will break if batch size > 1
             sequenced_X_tfidf = torch.Tensor([dataset.tokenizer.encode(x)[:50] for x in X_tfidf]).long()
 

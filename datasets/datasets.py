@@ -111,8 +111,7 @@ class BibleCommentaryDataset(Dataset):
         comment_sequence = self.current_sample.iloc[item]['comment_sequence']
         nn_v_x, nn_c_x = torch.Tensor(verse_sequence).long(), torch.Tensor(comment_sequence[:self.sentence_length]).long()
         nn_y = comment_sequence[self.sentence_length]
-        tfidf_x = self.current_sample.iloc[item]['comment']
-        return (nn_v_x, nn_c_x, tfidf_x, nn_y)
+        return (nn_v_x, nn_c_x, nn_y)
 
     def __len__(self):
         return min(len(self.current_sample), self.max_dataset_length) or 1
