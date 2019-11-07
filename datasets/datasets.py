@@ -107,10 +107,15 @@ class BibleCommentaryDataset(Dataset):
         return df
 
     def __getitem__(self, item):
+        # deliver single sample to dataloader
         verse_sequence = self.current_sample.iloc[item]['verse_sequence']
         comment_sequence = self.current_sample.iloc[item]['comment_sequence']
         nn_v_x, nn_c_x = torch.Tensor(verse_sequence).long(), torch.Tensor(comment_sequence[:self.sentence_length]).long()
         nn_y = comment_sequence[self.sentence_length]
+        # nn_v_x is whole verse sequence
+        # nn_c_x is whole comment sequence minus last word
+        # nn_y is last word
+        # this will be unpacked further in trainer
         return (nn_v_x, nn_c_x, nn_y)
 
     def __len__(self):

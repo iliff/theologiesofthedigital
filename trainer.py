@@ -15,11 +15,17 @@ from traininghooks import generatorhook
 def train(model_filename='verse_continuation_model.pt',
           lr=6.5e-5, correct_bias=False, epochs=1000, inferencehook=None,
           num_sentences=4, optimize_every=1, load_model=None):
+          
     dataset = BibleCommentaryDataset(max_seq_len=512, max_dataset_length=300,
                                      batches_per_sent_len=2, df_book=None)
+    # batch_size tells dataloader how many loops to use with __getitem__
+    # dataloader is an iterable that will return batches of (batch_size, getitem_size--3 things)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True,
                             num_workers=1)
 
+    # Built in generator.py linear model from sklearn runs on CPU
+    # CPULinear finds similarity between texts. looks at all comments and picks top match
+    # with the focus comment at every call of forward method. 
     tfidf_model = CPULinear(num_output_sentences=1, knowledge_utterances=dataset.df.comment.tolist())
 
     if model_filename and os.path.exists(model_filename):
@@ -34,10 +40,13 @@ def train(model_filename='verse_continuation_model.pt',
     model = model.to('cuda')
 
     # criterion = nn.CrossEntropyLoss()
+    # used after output from model to compare model output y^ with actual y
     criterion = nn.AdaptiveLogSoftmaxWithLoss(model.gpt2_config.vocab_size,
                                               model.gpt2_config.vocab_size,
                                               [50, 200, 2000]).to('cuda')
 
+    # preferred by PyTorch transformers. tells us how to apply the gradients to adjust
+    # weights/parameters
     optimizer = AdamW(params=model.parameters(), lr=lr, correct_bias=correct_bias)
 
     optimizer.zero_grad()
@@ -54,6 +63,7 @@ def train(model_filename='verse_continuation_model.pt',
 
         running_losses = []
 
+        # only enumerating to show batch number on output/display
         for i, batch in enumerate(dataloader):
 
             X_scripture, X_comment, y = batch
@@ -69,9 +79,12 @@ def train(model_filename='verse_continuation_model.pt',
             X_tfidf = sequenced_X_tfidf.to('cuda')
             y = y.to('cuda')
 
+            # process mini batch. go through whole sequence for first item in 
             for j in range(1, 151):
+                # give us all in comment up to j, not including j.
                 predictions = model(X_scripture, X_comment[:, :j], X_tfidf)
                 # AdaptiveLogSoftmaxWithLoss returns a NamedTuple with output and loss attributes
+                # calculate loss against jth element, which is next word
                 loss = criterion(predictions, X_comment[:, j] if j < 150 else y).loss / optimize_every
                 running_losses.append(loss.item())
                 epoch_losses.append(loss.item())
