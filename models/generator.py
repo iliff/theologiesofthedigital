@@ -67,12 +67,13 @@ class GPT2Generator(nn.Module):
     def __init__(self):
         super(GPT2Generator, self).__init__()
 
-        # TODO: can i make the outputs below large and the knowledge medium?
+        # TODO: can i make the outputs below medium and the knowledge medium?
         self.gpt2_config = GPT2Config.from_pretrained('gpt2-medium')
         self.input_gpt2 = GPT2Model.from_pretrained('gpt2-medium')
+        self.gpt2_config_medium = GPT2Config.from_pretrained('gpt2-medium')
         self.output_gpt2 = GPT2Model.from_pretrained('gpt2-medium')
-        self.lm_head = nn.Linear(self.gpt2_config.n_embd * 3,  # assume a single knowledge utterance for now
-                                 self.gpt2_config.vocab_size, bias=False)
+        self.lm_head = nn.Linear(self.gpt2_config.n_embd + self.gpt2_config.n_embd * 2,  # assume a single knowledge utterance for now
+                                 self.gpt2_config_medium.vocab_size, bias=False)
 
         # initialize weights for ``self.lm_head``
         self.lm_head.weight.data.normal_(mean=0.0, std=self.gpt2_config.initializer_range)

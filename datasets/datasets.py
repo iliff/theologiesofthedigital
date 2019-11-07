@@ -34,11 +34,11 @@ class CustomTokenizer(GPT2Tokenizer):
 
 class BibleCommentaryDataset(Dataset):
 
-    tokenizer = CustomTokenizer.from_pretrained('gpt2-large')
+    tokenizer = CustomTokenizer.from_pretrained('gpt2-medium')
     eos_index = tokenizer.encode(tokenizer.eos_token)[0]
 
     def __init__(self, dir_='trainingdata', max_seq_len=512, archive_filename='commentaries',
-                 refresh=False, max_dataset_length=10_000, batches_per_sent_len=20,
+                 refresh=True, max_dataset_length=10_000, batches_per_sent_len=20,
                  limit_df_to=None, df_book=None):
         self.dir_ = dir_
         self.max_seq_len = max_seq_len
@@ -79,6 +79,7 @@ class BibleCommentaryDataset(Dataset):
 
     def _clean_df(self, df):
         df = df.dropna(subset=['comment'])
+        df = df.drop_duplicates(subset=['comment'], keep='last')
         df.loc[:, 'comment'] = df['comment'].apply(lambda x: x.strip())
         df = df[df['comment'] != '']
         return df
@@ -108,7 +109,7 @@ class BibleCommentaryDataset(Dataset):
     def __getitem__(self, item):
         verse_sequence = self.current_sample.iloc[item]['verse_sequence']
         comment_sequence = self.current_sample.iloc[item]['comment_sequence']
-        nn_v_x, nn_c_x = torch.Tensor(([0] * 60 + verse_sequence)[-60:]).long(), torch.Tensor(comment_sequence[:self.sentence_length]).long()
+        nn_v_x, nn_c_x = torch.Tensor(verse_sequence).long(), torch.Tensor(comment_sequence[:self.sentence_length]).long()
         nn_y = comment_sequence[self.sentence_length]
         tfidf_x = self.current_sample.iloc[item]['comment']
         return (nn_v_x, nn_c_x, tfidf_x, nn_y)

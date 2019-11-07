@@ -1,11 +1,13 @@
 import torch
 from pytorch_transformers import GPT2Tokenizer
 
+from models.generator_lm_only import GPT2Generator
 from utterancegenerator_lm_only import finish_utterance
 
 
 if __name__ == '__main__':
-    model = torch.load('../modeldata/verse_continuation_model_lm_only_2.79289041.pt').to('cuda')
+    # model = torch.load('../modeldata/verse_continuation_model_lm_only_2.79289041.pt').to('cuda')
+    model = GPT2Generator().to('cuda')
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
 
     while True:
