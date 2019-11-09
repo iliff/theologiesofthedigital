@@ -10,7 +10,7 @@ We are taking a supervised approach to training this bible commentator model. Th
 With our supervised approach to training, we construct a dataset that has two inputs (X_verse, X_commentary) and a known output (y). Because we are using gpt-2 to generate text, one word at a time, from a seed prompt, here is what these inputs and outputs look like:
 
 ```
-X_verse = an integer encoded sequence of the entire verse from Revelation
+X_scripture = an integer encoded sequence of the entire verse from Revelation
 X_commentary = an interger encoded sequence of the commentary at each stage (this will grow each pass)
 y = the next word (encoded sequence) of the commentary 
 ```
