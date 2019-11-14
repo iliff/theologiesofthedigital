@@ -5,11 +5,7 @@ from models.generator_lm_only import GPT2Generator
 from utterancegenerator_lm_only import finish_utterance
 
 
-if __name__ == '__main__':
-    # model = torch.load('../modeldata/verse_continuation_model_lm_only_2.79289041.pt').to('cuda')
-    model = GPT2Generator().to('cuda')
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
-
+def infer_conditionally(model, tokenizer):
     while True:
         verse = input('Please enter your verse: ')
 
@@ -39,3 +35,11 @@ if __name__ == '__main__':
         for i in range(variations):
             utterance = finish_utterance(model, tokenizer, verse, words2add=words2add, k=top_k)
             print(utterance)
+
+
+if __name__ == '__main__':
+    # model = torch.load('../modeldata/verse_continuation_model_lm_only_2.79289041.pt').to('cuda')
+    model = GPT2Generator().to('cuda')
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
+
+    infer_conditionally(model, tokenizer)
