@@ -1,11 +1,12 @@
 import torch
 from pytorch_transformers import GPT2Tokenizer
 
-from models.generator_lm_only import GPT2Generator
+from datasets.datasets_lm_only import BibleCommentaryDataset
+from models.generator_lm_only import CPULinear, GPT2Generator
 from utterancegenerator_lm_only import finish_utterance
 
 
-def infer_conditionally(model, tokenizer):
+def infer_conditionally(model, tfidf_model, tokenizer):
     while True:
         verse = input('Please enter your verse: ')
 
@@ -33,7 +34,8 @@ def infer_conditionally(model, tokenizer):
                 continue
 
         for i in range(variations):
-            utterance = finish_utterance(model, tokenizer, verse, words2add=words2add, k=top_k)
+            # gpt2_model, tfidf_model, tokenizer, verse, words2add=120, k=40
+            utterance = finish_utterance(model, tfidf_model, tokenizer, verse, words2add=words2add, k=top_k)
             print(utterance)
 
 
@@ -42,4 +44,11 @@ if __name__ == '__main__':
     model = GPT2Generator().to('cuda')
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
 
-    infer_conditionally(model, tokenizer)
+    dataset = BibleCommentaryDataset(dir_='trainingdata', filenames=['Beal.txt'], min_sequence_length=10,
+                                     max_sequence_length=300)
+    dataset.current_sequence_length = 30
+    tfidf_model = CPULinear(output_sent_indices_to_join=[1, 3],
+                            knowledge_utterances=[dataset.tokenizer.decode(dataset[i][0].tolist()) for i in
+                                                  range(len(dataset))])
+
+    infer_conditionally(model, tfidf_model, tokenizer)
