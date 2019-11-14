@@ -1,3 +1,5 @@
+import re
+
 import torch
 from pytorch_transformers import GPT2Tokenizer
 
@@ -36,6 +38,8 @@ def infer_conditionally(model, tfidf_model, tokenizer):
         for i in range(variations):
             # gpt2_model, tfidf_model, tokenizer, verse, words2add=120, k=40
             utterance = finish_utterance(model, tfidf_model, tokenizer, verse, words2add=words2add, k=top_k)
+            # start at the beginning of a sentence
+            utterance = re.split(r'[?.!]', utterance, maxsplit=1)
             print(utterance)
 
 
