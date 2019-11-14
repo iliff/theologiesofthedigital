@@ -14,16 +14,16 @@ class CPULinear:
     NOTE WELL: only runs on CPU and is based upon scikitlearn, not pytorch.
     """
 
-    def __init__(self, num_output_sentences=1, knowledge_utterances=[]):
+    def __init__(self, output_sent_indices_to_join=[1, 3], knowledge_utterances=[]):
         """
         Constructor.
 
         Parameters
         ----------
-        num_output_sentences (int) - number of sentences to output from knowledge base.
+        output_sent_indices_to_join (int) - number of sentences to output from knowledge base.
         knowledge_utterances (list of str) - utterances that exhibit subject area knowledge.
         """
-        self.num_output_sentences = num_output_sentences
+        self.output_sent_indices_to_join = output_sent_indices_to_join
         self.vectorizer = TfidfVectorizer()
         self.knowledge_utterances = knowledge_utterances
         self.knowledge_vectors = self.vectorizer.fit_transform(knowledge_utterances)
@@ -44,14 +44,17 @@ class CPULinear:
         transformed_utterances = self.vectorizer.transform(utterances)
         informing_utterances = []
         for i, transformed_utterance in enumerate(transformed_utterances):
+            
             similarities = linear_kernel(transformed_utterances[i:i + 1], self.knowledge_vectors).flatten()
-            best_index = np.argmax(similarities)
-            # the following lines would be for more than one returned utterance
-            # best_index = np.argpartition(similarities, -self.num_output_sentences)[-self.num_output_sentences]
-            # sorted_best_indices = sorted(best_indices.tolist(), key=lambda x: similarities[x], reverse=True)
-            # informing_sents = [self.knowledge_utterances[j] for j in sorted_best_indices]
-            informing_utterances.append(' '.join(self.knowledge_utterances[best_index:best_index + 7]))
-        return informing_utterances
+
+            # add together sentences identified in self.output_sent_indices_to_join
+            for j in range(max(self.output_sent_indices_to_join) + 1):
+                best_index = np.argmax(similarities)
+                if j in self.output_sent_indices_to_join:
+                    informing_utterances.append(self.knowledge_utterances[best_index])
+                similarities[best_index] = 0.
+
+        return ' '.join(informing_utterances)
 
 
 class GPT2Generator(nn.Module):
