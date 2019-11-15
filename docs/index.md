@@ -4,7 +4,7 @@ layout: default
 
 # bible as interface: reading bible with machines
 
-There are two primary assumptions driving this project. First, our team believes that machines are partners in reading bible. Machines read differently than we do and can teach us things about bible as we read together. Second, we contend that bible is an interface that can afford collaboration and anarchy.  I will expand on these affordances later, but for now, bible as interface simply indicates that bible is made in the encounter between a user and the materiality of the platforms that...
+There are two primary assumptions driving this project. First, our team believes that machines are partners in reading bible. Machines read differently than we do and can teach us things about bible as we read together. Second, we contend that bible is an interface that can afford collaboration and anarchy.  I will expand on these affordances later, but for now, bible as interface simply indicates that bible is made in the encounter between a user and the materiality of the technologies that participate in the event.
 
 > I refer to bible without the definite article and without capitalization to emphasize that bible is multiple and fluid, constructed as we as users engage with it in interface. 
 
