@@ -13,7 +13,7 @@ from traininghooks_lm_only import generatorhook
 
 def train(model_filename='model_{loss}.pt', lr=6.5e-5, epochs=1000, inferencehook=None,
           load_model=None, inference_verses=2, batch_size=64):
-    dataset = BibleCommentaryDataset(dir_='trainingdata', filenames=['Beal.txt'], min_sequence_length=10,
+    dataset = BibleCommentaryDataset(dir_='trainingdata', filenames=['Beal.txt'], min_sequence_length=20,
                                      max_sequence_length=300)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
                             num_workers=1)
@@ -79,7 +79,7 @@ def train(model_filename='model_{loss}.pt', lr=6.5e-5, epochs=1000, inferencehoo
 
 if __name__ == '__main__':
     train(model_filename='model_{loss:.8f}.pt', inferencehook=generatorhook,
-          lr=6.5e-5, epochs=1000, load_model='model_3.78957510.pt', batch_size=128,
+          lr=6.5e-5, epochs=1000, load_model='model_0.04164963.pt', batch_size=16,
           inference_verses=['Come, I will show you the judgment of the great whore who is seated on many waters, '
                             'with whom the kings of the earth have committed fornication, and with the wine of '
                             'whose fornication the inhabitants of the earth have become drunk.',
