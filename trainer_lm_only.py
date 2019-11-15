@@ -20,7 +20,7 @@ def train(model_filename='model_{loss}.pt', lr=6.5e-5, epochs=1000, inferencehoo
 
     # creates tfidf model ONLY ON SEQUENCE SIZE 30 (for now)
     dataset.current_sequence_length = 30
-    tfidf_model = CPULinear(output_sent_indices_to_join=[1, 3],
+    tfidf_model = CPULinear(number_of_sentences_as_seed=2,
                             knowledge_utterances=[dataset.tokenizer.decode(dataset[i][0].tolist()) for i in range(len(dataset))])
     dataset.current_sequence_length = dataset.min_sequence_length
 

@@ -1,3 +1,6 @@
+import re
+
+from gensim.summarization import keywords
 import numpy as np
 # pip3 install pytorch-transformers
 from pytorch_transformers import GPT2LMHeadModel, GPT2Config
@@ -14,19 +17,31 @@ class CPULinear:
     NOTE WELL: only runs on CPU and is based upon scikitlearn, not pytorch.
     """
 
-    def __init__(self, output_sent_indices_to_join=[1, 3], knowledge_utterances=[]):
+    def __init__(self, number_of_sentences_as_seed=2, knowledge_utterances=[]):
         """
         Constructor.
 
         Parameters
         ----------
-        output_sent_indices_to_join (int) - number of sentences to output from knowledge base.
+        number_of_sentences_as_seed (int) - number of sentences to output from knowledge base.
         knowledge_utterances (list of str) - utterances that exhibit subject area knowledge.
         """
-        self.output_sent_indices_to_join = output_sent_indices_to_join
+        self.number_of_sentences_as_seed = number_of_sentences_as_seed
         self.vectorizer = TfidfVectorizer()
         self.knowledge_utterances = knowledge_utterances
         self.knowledge_vectors = self.vectorizer.fit_transform(knowledge_utterances)
+
+        # compile passage keyterms for help honing in on a passage
+        with open('../trainingdata/nrsv.txt') as f:
+            rev_text = f.read()
+        rev_text_lines = rev_text.split('\n')
+        self.passage_kw_clusters = {}
+        for i in range(0, len(rev_text_lines), 7):
+            subtext_lines = rev_text_lines[i:i + 7]
+            subtext = ' '.join(subtext_lines)
+            key_terms = keywords(subtext, ratio=0.2, split=True)
+            if key_terms:
+                self.passage_kw_clusters[subtext] = set(key_terms)
 
     def forward(self, utterances):
         """
@@ -44,15 +59,34 @@ class CPULinear:
         transformed_utterances = self.vectorizer.transform(utterances)
         informing_utterances = []
         for i, transformed_utterance in enumerate(transformed_utterances):
-            
+
+            # find cluster set closest to utterance
+            best_passage, best_cluster_score = '', 0
+            for passage, key_term_cluster in self.passage_kw_clusters.items():
+                cluster_score = len(set(re.findall(r'\w+', utterances[i])) & key_term_cluster)
+                if cluster_score > best_cluster_score:
+                    key_terms = key_term_cluster
+                    best_cluster_score = cluster_score
+
             similarities = linear_kernel(transformed_utterances[i:i + 1], self.knowledge_vectors).flatten()
 
-            # add together sentences identified in self.output_sent_indices_to_join
-            for j in range(max(self.output_sent_indices_to_join) + 1):
+            # add together sentences identified in self.number_of_sentences_as_seed
+            attempts = 0
+            first_best_index = np.argmax(similarities)  # as default in case no others are found
+            while len(informing_utterances) < self.number_of_sentences_as_seed:
                 best_index = np.argmax(similarities)
-                if j in self.output_sent_indices_to_join:
-                    informing_utterances.append(self.knowledge_utterances[best_index])
+                utterance = self.knowledge_utterances[best_index]
+                lower_utterance = utterance.lower()
+                for key_term in key_terms:
+                    if key_term in lower_utterance:
+                        informing_utterances.append(utterance)
+                        break
                 similarities[best_index] = 0.
+                if attempts > 25:
+                    if len(informing_utterances) == 0:
+                        informing_utterances.append(self.knowledge_utterances[first_best_index])
+                    break
+                attempts += 1
 
         return ' '.join(informing_utterances)
 
